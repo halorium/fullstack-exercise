@@ -1,6 +1,17 @@
 version: '3'
 
 services:
+  backend:
+    environment:
+      - MYSQL_DATABASE=example-db
+      - MYSQL_USER=example-user
+      - MYSQL_PASSWORD=password
+    build:
+      context: src/backend/
+    ports:
+      - 4000:4000
+    depends_on:
+      - "db"
   client:
     restart: always
     build:
@@ -9,6 +20,8 @@ services:
       - ./src/client/src:/var/app/src
     ports:
       - 3000:3000
+    depends_on:
+      - "backend"
   db:
     image: mysql:8.0
     environment:
