@@ -5,41 +5,27 @@ import (
   "net/http"
 )
 
-func getPeople(responseWriter http.ResponseWriter, request *http.Request) {
-  responseWriter.Header().Set("Access-Control-Allow-Origin", "*")
+func GetPeople(env *Env) func(http.ResponseWriter, *http.Request) {
+  return func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Access-Control-Allow-Origin", "*")
 
-  db, err := newDBConnection()
+    query := r.URL.Query().Get("q")
 
-  if err != nil {
-    http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
-    return
-  }
+    people, err := env.db.GetPeople(query)
 
-  defer db.Close()
-
-  var people []*Person
-
-  query := request.URL.Query().Get("q")
-
-  if query != "" {
-    query = "%" + query + "%"
-    db.Preload("PeopleColors").Where("LOWER(name) LIKE ?", query).Find(&people)
-  } else {
-    db.Preload("PeopleColors").Find(&people)
-  }
-
-  for _, person := range people {
-    for _, color := range person.PeopleColors {
-      person.Colors = append(person.Colors, color.Color)
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
     }
+
+    serialized, err := json.Marshal(people)
+
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+
+    w.WriteHeader(http.StatusOK)
+    w.Write(serialized)
   }
-
-  serialized, err := json.Marshal(people)
-
-  if err != nil {
-    http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
-    return
-  }
-
-  responseWriter.Write(serialized)
 }

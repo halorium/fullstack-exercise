@@ -7,7 +7,15 @@ import (
   _ "github.com/jinzhu/gorm/dialects/mysql"
 )
 
-func newDBConnection() (*gorm.DB, error) {
+type Datastore interface {
+  GetPeople(query string) ([]*Person, error)
+}
+
+type DB struct {
+  *gorm.DB
+}
+
+func NewDB() (*DB, error) {
   username := os.Getenv("MYSQL_USER")
   password := os.Getenv("MYSQL_PASSWORD")
   dbname := os.Getenv("MYSQL_DATABASE")
@@ -20,5 +28,24 @@ func newDBConnection() (*gorm.DB, error) {
     return nil, err
   }
 
-  return db, nil
+  return &DB{db}, nil
+}
+
+func (db *DB) GetPeople(query string) ([]*Person, error) {
+  var people []*Person
+
+  if query != "" {
+    query = "%" + query + "%"
+    db.Preload("PeopleColors").Where("LOWER(name) LIKE ?", query).Find(&people)
+  } else {
+    db.Preload("PeopleColors").Find(&people)
+  }
+
+  for _, person := range people {
+    for _, color := range person.PeopleColors {
+      person.Colors = append(person.Colors, color.Color)
+    }
+  }
+
+  return people, nil
 }
